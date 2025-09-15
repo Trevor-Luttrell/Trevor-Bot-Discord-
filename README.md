@@ -1,1 +1,1 @@
-This project is just for messing around. This is not reflective of my professional program writing style, organization, or any similar traits!
+This program hosts a discord bot that does at least one million things that all always work the first time!
