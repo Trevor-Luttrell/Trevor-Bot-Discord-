@@ -159,163 +159,162 @@ export async function playAudio(url, connection, message) {
 }
 
 // Listen for messages in guilds
-if(true){
-  client.on("messageCreate", async (message) => {
-    if (message?.author.bot){
-      return;
+
+client.on("messageCreate", async (message) => {
+  if (message?.author.bot){
+    return;
+  }
+
+  if (message.content === "!tjoin") {
+    const channel = message.member.voice.channel;
+    if (!channel) {
+      return message.reply("You need to be in a voice channel to use this command.");
     }
 
-    if (message.content === "!tjoin") {
-      const channel = message.member.voice.channel;
-      if (!channel) {
-        return message.reply("You need to be in a voice channel to use this command.");
+    const connection = joinVoiceChannel({
+      channelId: channel.id,
+      guildId: message.guild.id,
+      adapterCreator: message.guild.voiceAdapterCreator,
+    });
+
+    return message.reply(`Joined ${channel.name}`);
+  }
+  else if(message.content === "!tleave") {
+    const connection = getVoiceConnection(message.guild.id);
+    if (connection) {
+      connection.destroy();
+      return message.reply("Left the voice channel.");
+    } 
+    else {
+      return message.reply("I am not in a voice channel.");
+    }
+  }
+  else if (message.content === "You make me happy TrevorBot") {
+    // Response to praise
+    return message.reply("You make me happy too! :)");
+  }
+  else if (message.content === "You make me sad TrevorBot") {
+    // Response to sadness
+    return message.reply("I am a construct of your own disappointment.");
+  }
+  else if (message.content === "!cat"){
+    const userId = message.author.id;
+    const username = message.author.username;
+
+    const stats = loadStats(CAT_FILE);
+
+    // Update catViewCount
+    if (!stats[userId]) {
+      stats[userId] = { username, catViewCount: 1 };
+    } else {
+      stats[userId].catViewCount += 1;
+    }
+
+    saveStats(stats, CAT_FILE); // Save to disk
+    const imageUrl = catImages[Math.floor(Math.random() * catImages.length)];
+    return message.channel.send({ files: [imageUrl] });
+  }
+  else if (message.content === "!catlevel"){
+    const userId = message.author.id;
+    const stats = loadStats(CAT_FILE);
+
+    if (stats[userId]) {
+      return message.reply(`You've viewed ${stats[userId].catViewCount} cat photo(s)!`);
+    } else {
+      return message.reply(`You haven't viewed any cat photos yet! Try using \`!cat\``);
+    }
+  }
+  else if (message.content === "!thelp") {
+    return message.reply("Available commands: `!tjoin`, `!tleave`, `!cat`, `!catlevel`, `!tlate <name> <minutes>`, `!tlate <name>`, `!tchat \"message\" userId`");
+  }
+  else if (message.content.startsWith('!tplay')) {
+    const args = message.content.split(' ').slice(1); // get everything after !tplay
+    if (args.length === 0) return message.reply("Please enter a song name or link!");
+
+    const query = args.join(' ');
+    const channel = message.member.voice.channel;
+    if (!channel) return message.reply("You must be in a voice channel!");
+
+    const connection = joinVoiceChannel({
+      channelId: channel.id,
+      guildId: message.guild.id,
+      adapterCreator: message.guild.voiceAdapterCreator,
+    });
+
+    let url;
+
+    // If it's a valid URL, just use it. Otherwise, search.
+    if (play.yt_validate(query) === 'video') {
+      url = query;
+    } 
+    else {
+      const results = await play.search(query, { limit: 1 });
+      if (results.length === 0) return message.reply("No results found!");
+      url = results[0].url;
+    }
+
+    await playAudio(url, connection, message);
+  }
+  else if (message.content.startsWith("!tlate")){
+    const args = message.content.split(' ').slice(1); // get everything after !tlate
+    if (args.length === 2) {
+      const name = args[0];
+      const minutes = parseInt(args[1]);
+      if (isNaN(minutes) || minutes < 0) {
+        return message.reply("Please provide a valid number of minutes.");
       }
+      const stats = loadStats(LATE_FILE);
 
-      const connection = joinVoiceChannel({
-        channelId: channel.id,
-        guildId: message.guild.id,
-        adapterCreator: message.guild.voiceAdapterCreator,
-      });
-
-      return message.reply(`Joined ${channel.name}`);
-    }
-    else if(message.content === "!tleave") {
-      const connection = getVoiceConnection(message.guild.id);
-      if (connection) {
-        connection.destroy();
-        return message.reply("Left the voice channel.");
-      } 
-      else {
-        return message.reply("I am not in a voice channel.");
-      }
-    }
-    else if (message.content === "You make me happy TrevorBot") {
-      // Response to praise
-      return message.reply("You make me happy too! :)");
-    }
-    else if (message.content === "You make me sad TrevorBot") {
-      // Response to sadness
-      return message.reply("I am a construct of your own disappointment.");
-    }
-    else if (message.content === "!cat"){
-      const userId = message.author.id;
-      const username = message.author.username;
-
-      const stats = loadStats(CAT_FILE);
-
-      // Update catViewCount
-      if (!stats[userId]) {
-        stats[userId] = { username, catViewCount: 1 };
+        if (!stats[name]) {
+        stats[name] = {
+          totalMinutesLate: minutes,
+          lateCount: 1
+        };
       } else {
-        stats[userId].catViewCount += 1;
+        stats[name].totalMinutesLate += minutes;
+        stats[name].lateCount += 1;
       }
 
-      saveStats(stats, CAT_FILE); // Save to disk
-      const imageUrl = catImages[Math.floor(Math.random() * catImages.length)];
-      return message.channel.send({ files: [imageUrl] });
-    }
-    else if (message.content === "!catlevel"){
-      const userId = message.author.id;
-      const stats = loadStats(CAT_FILE);
+      saveStats(stats, LATE_FILE);
 
-      if (stats[userId]) {
-        return message.reply(`You've viewed ${stats[userId].catViewCount} cat photo(s)!`);
+      return message.reply('Permanent record updated.');
+    }
+    else if (args.length === 1) {
+      const name = args[0];
+      const stats = loadStats(LATE_FILE);
+
+      if (stats[name]) {
+        const totalMinutesLate = stats[name].totalMinutesLate;
+        const lateCount = stats[name].lateCount;
+        return message.reply(`${name} has been late a total of ${totalMinutesLate} minutes over ${lateCount} instances.`);
       } else {
-        return message.reply(`You haven't viewed any cat photos yet! Try using \`!cat\``);
+        return message.reply(`${name} has no late records.`);
       }
+    } else {
+      return message.reply("Usage: !tlate <name> <minutes> or !tlate <name>");
     }
-    else if (message.content === "!thelp") {
-      return message.reply("Available commands: `!tjoin`, `!tleave`, `!cat`, `!catlevel`, `!tlate <name> <minutes>`, `!tlate <name>`, `!tchat \"message\" userId`");
+  }
+  else if (message.content.startsWith("!tchat")){
+    const args = message.content.match(/"([^"]+)"\s+(\d{17,19})/);
+
+    if (!args) {
+      return message.channel.send('❌ Usage: !tchat "your message here" userId');
     }
-    else if (message.content.startsWith('!tplay')) {
-      const args = message.content.split(' ').slice(1); // get everything after !tplay
-      if (args.length === 0) return message.reply("Please enter a song name or link!");
 
-      const query = args.join(' ');
-      const channel = message.member.voice.channel;
-      if (!channel) return message.reply("You must be in a voice channel!");
+    const [, text, userId] = args;
 
-      const connection = joinVoiceChannel({
-        channelId: channel.id,
-        guildId: message.guild.id,
-        adapterCreator: message.guild.voiceAdapterCreator,
-      });
-
-      let url;
-
-      // If it's a valid URL, just use it. Otherwise, search.
-      if (play.yt_validate(query) === 'video') {
-        url = query;
-      } 
-      else {
-        const results = await play.search(query, { limit: 1 });
-        if (results.length === 0) return message.reply("No results found!");
-        url = results[0].url;
-      }
-
-      await playAudio(url, connection, message);
+    try {
+      const user = await client.users.fetch(userId);
+      await user.send(text);
+      message.channel.send(`✅ Sent message to <@${userId}>`);
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      message.channel.send('❌ Could not send the message. Check the ID and try again.');
     }
-    else if (message.content.startsWith("!tlate")){
-      const args = message.content.split(' ').slice(1); // get everything after !tlate
-      if (args.length === 2) {
-        const name = args[0];
-        const minutes = parseInt(args[1]);
-        if (isNaN(minutes) || minutes < 0) {
-          return message.reply("Please provide a valid number of minutes.");
-        }
-        const stats = loadStats(LATE_FILE);
+  }
+});
 
-          if (!stats[name]) {
-          stats[name] = {
-            totalMinutesLate: minutes,
-            lateCount: 1
-          };
-        } else {
-          stats[name].totalMinutesLate += minutes;
-          stats[name].lateCount += 1;
-        }
-
-        saveStats(stats, LATE_FILE);
-
-        return message.reply('Permanent record updated.');
-      }
-      else if (args.length === 1) {
-        const name = args[0];
-        const stats = loadStats(LATE_FILE);
-
-        if (stats[name]) {
-          const totalMinutesLate = stats[name].totalMinutesLate;
-          const lateCount = stats[name].lateCount;
-          return message.reply(`${name} has been late a total of ${totalMinutesLate} minutes over ${lateCount} instances.`);
-        } else {
-          return message.reply(`${name} has no late records.`);
-        }
-      } else {
-        return message.reply("Usage: !tlate <name> <minutes> or !tlate <name>");
-      }
-    }
-    else if (message.content.startsWith("!tchat")){
-      const args = message.content.match(/"([^"]+)"\s+(\d{17,19})/);
-
-      if (!args) {
-        return message.channel.send('❌ Usage: !tchat "your message here" userId');
-      }
-
-      const [, text, userId] = args;
-
-      try {
-        const user = await client.users.fetch(userId);
-        await user.send(text);
-        message.channel.send(`✅ Sent message to <@${userId}>`);
-      } catch (err) {
-        console.error('Failed to send message:', err);
-        message.channel.send('❌ Could not send the message. Check the ID and try again.');
-      }
-    }
-  });
-}
-else{
-  //AI responses
+//AI responses
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
   client.on('messageCreate', async (message) => {
@@ -362,7 +361,6 @@ else{
       await message.reply("Sorry, my brain short-circuited trying to think of a response.");
     }
   });
-}
 
 const friendlyMessages = [
   "Good morning!",
