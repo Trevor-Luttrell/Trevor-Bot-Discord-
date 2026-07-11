@@ -1,16 +1,8 @@
 import cron from 'node-cron';
 import { loadStats, saveStats } from './utils.mjs';
+import { kindMessages } from '../static/messages.mjs';
 
 const DAILY_STATE_FILE = './json/daily_state.json';
-
-const friendlyMessages = ["Good morning!", "Hello!"];
-
-const kindMessages = [
-  "Just a reminder that you are capable of amazing things! Have a wonderful day.",
-  "Take a deep breath. You're doing better than you think you are.",
-  "In case no one told you today: you matter, and your efforts are appreciated.",
-  "Be kind to yourself today. You deserve the same grace you give to others."
-];
 
 // Handles the persistent daily kind message tracking
 export async function checkAndSendDailyMessage(client) {
@@ -24,7 +16,8 @@ export async function checkAndSendDailyMessage(client) {
   console.log("Checking channels for scheduled daily message...");
   
   const targetUserIds = [
-    "704084774968492083"
+    "704084774968492083",
+    "540274504593702942"
   ];
   
   let messageDispatched = false;
