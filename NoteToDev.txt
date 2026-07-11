@@ -1,0 +1,6 @@
+Things to fix: 
+audio
+shutdown/crash message does not get sent
+
+Things to add:
+make trevorbot leave any voice calls it is in when it shuts down, or is turned off

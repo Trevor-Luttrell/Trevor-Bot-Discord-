@@ -2,6 +2,12 @@ import { joinVoiceChannel, getVoiceConnection } from "@discordjs/voice";
 import play from 'play-dl';
 import { loadStats, saveStats, playAudio } from './utils.mjs';
 
+await play.setToken({
+  youtube: {
+    cookie: "./static/cookies.txt"
+  }
+});
+
 const CAT_FILE = './json/cat.json';
 const LATE_FILE = './json/late.json';
 
@@ -84,28 +90,35 @@ export async function handleTextCommands(message, client) {
   }
 
   if (content.startsWith('!tplay')) {
-    const args = content.split(' ').slice(1);
-    if (args.length === 0) return message.reply("Please enter a song name or link!");
+              const args = content.trim().split(/\s+/).slice(1);
+              if (args.length === 0) return message.reply("Please enter a song name or link!");
 
-    const query = args.join(' ');
-    const channel = message.member.voice.channel;
-    if (!channel) return message.reply("You must be in a voice channel!");
+              const query = args.join(' ');
+              const channel = message.member.voice.channel;
+              if (!channel) return message.reply("You must be in a voice channel!");
 
-    const connection = joinVoiceChannel({
-      channelId: channel.id,
-      guildId: message.guild.id,
-      adapterCreator: message.guild.voiceAdapterCreator,
-    });
+              let connection = getVoiceConnection(message.guild.id);
 
-    let url;
-    if (play.yt_validate(query) === 'video') {
-      url = query;
-    } else {
-      const results = await play.search(query, { limit: 1 });
-      if (results.length === 0) return message.reply("No results found!");
-      url = results[0].url;
-    }
-    await playAudio(url, connection, message);
+              if (!connection) {
+                connection = joinVoiceChannel({
+                  channelId: channel.id,
+                  guildId: message.guild.id,
+                  adapterCreator: message.guild.voiceAdapterCreator,
+                });
+              }
+
+              let url;
+              if (query.startsWith('http://') || query.startsWith('https://')) {
+                url = query;
+              } else {
+                const results = await play.search(query, { limit: 1 });
+                if (results.length === 0) return message.reply("No results found!");
+                url = results[0].url;
+              }
+              
+              await playAudio(url, connection, message);
+
+              return true;
   }
 
   if (content.startsWith("!tlate")) {
@@ -150,5 +163,9 @@ export async function handleTextCommands(message, client) {
       console.error('Failed to send message:', err);
       message.channel.send('❌ Could not send the message. Check the ID and try again.');
     }
+
+    return true;
   }
+
+  return false;
 }

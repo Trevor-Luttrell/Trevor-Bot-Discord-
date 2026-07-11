@@ -1,6 +1,6 @@
 import fs from 'fs';
 import play from 'play-dl';
-import { createAudioPlayer, createAudioResource, entersState, AudioPlayerStatus, VoiceConnectionStatus } from '@discordjs/voice';
+import { createAudioPlayer, createAudioResource, entersState, AudioPlayerStatus, VoiceConnectionStatus, StreamType } from '@discordjs/voice';
 
 export function loadStats(STATS_FILE) {
   try {
@@ -22,11 +22,20 @@ export function saveStats(stats, STATS_FILE) {
 
 export async function playAudio(url, connection, message) {
   try {
-    const stream = await play.stream(url, { quality: 2 });
+    // 1. Clean up the URL just in case Discord added markdown brackets < >
+    let cleanUrl = url.trim().replace(/[<>]/g, '');
+
+    // 2. DEBUG LOG: Let's see exactly what the string looks like in PM2
+    console.log("--- DEBUG: Attempting to play URL ---");
+    console.log(`Raw URL received: "${url}"`);
+    console.log(`Cleaned URL being passed: "${cleanUrl}"`);
+    console.log("--------------------------------------");
+
+    const stream = await play.stream(cleanUrl, { quality: 2 });
 
     const resource = createAudioResource(stream.stream, {
-      inputType: stream.type,
-      metadata: { title: url }
+      inputType: stream.type || StreamType.Arbitrary,
+      metadata: { title: cleanUrl }
     });
 
     const player = createAudioPlayer();
@@ -43,9 +52,9 @@ export async function playAudio(url, connection, message) {
     });
 
     await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
-    message.channel.send(`Now playing: ${url}`);
+    message.channel.send(`Now playing: ${cleanUrl}`);
   } catch (error) {
-    console.error("Playback error:", error.message);
+    console.error("Playback error details:", error);
     message.channel.send("Could not play audio.");
   }
 }
