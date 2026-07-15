@@ -31,7 +31,7 @@ dotenv.config();
 import { Client, GatewayIntentBits } from 'discord.js';
 import { handleTextCommands } from './commands.mjs';
 import { handleAiResponse } from './ai.mjs';
-import { initScheduler, checkAndSendDailyMessage } from './crons.mjs';
+import { initScheduler, checkAndSendDailyMessage, checkAndSendAnniversaryMessage } from './crons.mjs';
 
 const client = new Client({
     intents: [
@@ -45,14 +45,28 @@ const client = new Client({
 
 console.log("Starting Discord bot...");
 
-client.once('ready', async () => {
+client.once('clientReady', async () => {
   console.log(`Logged in as ${client.user.tag}`);
-
-  // Fallback recovery check if cron was missed during offline states
-  await checkAndSendDailyMessage(client);
 
   // Initialize cron schedules
   initScheduler(client);
+
+  // 1. Give the bot 5 seconds to stabilize and cache users before checking missed messages
+  console.log("Waiting 5 seconds for Discord cache to stabilize...");
+  setTimeout(async () => {
+    console.log("Executing startup backup checks for missed daily/anniversary messages...");
+    try {
+      await checkAndSendDailyMessage(client);
+    } catch (err) {
+      console.error("Error running daily message startup backup:", err);
+    }
+
+    try {
+      await checkAndSendAnniversaryMessage(client);
+    } catch (err) {
+      console.error("Error running anniversary message startup backup:", err);
+    }
+  }, 5000); // 5 seconds
 
   // Startup announcements across text channels
   client.guilds.cache.forEach(async (guild) => {

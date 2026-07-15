@@ -17,7 +17,9 @@ export async function checkAndSendDailyMessage(client) {
   
   const targetUserIds = [
     "704084774968492083",
-    "540274504593702942"
+    /*"540274504593702942",
+    "875165245721686017",
+    "780567033016221737"*/
   ];
   
   let messageDispatched = false;
@@ -83,14 +85,43 @@ export async function checkAndSendAnniversaryMessage(client) {
 
 export function initScheduler(client) {
   const options = { timezone: "America/Chicago" };
-  
-  // Protected Anniversary text - runs daily at 8AM but checks constraints inside
-  cron.schedule('0 8 * * *', async () => {
-    await checkAndSendAnniversaryMessage(client);
-  }, options);
 
-  // Standard Scheduled Daily Kind Messages Check
-  cron.schedule('0 8 * * *', async () => {
-    await checkAndSendDailyMessage(client);
-  }, options);
+  // Declare variables first so they are globally accessible inside initScheduler
+  let anniversaryTask;
+  let dailyTask;
+
+  try {
+    // 1. Anniversary Task
+    anniversaryTask = cron.schedule('0 8 * * *', async () => {
+      console.log("[Scheduler] 8:00 AM Anniversary clock-tick.");
+      await checkAndSendAnniversaryMessage(client);
+    }, options);
+  } catch (err) {
+    console.error("Failed to schedule anniversary cron:", err);
+  }
+
+  try {
+    // 2. Daily Message Task
+    dailyTask = cron.schedule('0 8 * * *', async () => {
+      console.log("[Scheduler] 8:00 AM Daily Message clock-tick.");
+      await checkAndSendDailyMessage(client);
+    }, options);
+  } catch (err) {
+    console.error("Failed to schedule daily message cron:", err);
+  }
+
+  // 3. Attach the wake-from-sleep failsafe events (if the tasks scheduled successfully)
+  if (anniversaryTask) {
+    anniversaryTask.on('execution:missed', async () => {
+      console.log("[Failsafe] Detected missed Anniversary run. Executing check...");
+      await checkAndSendAnniversaryMessage(client);
+    });
+  }
+
+  if (dailyTask) {
+    dailyTask.on('execution:missed', async () => {
+      console.log("[Failsafe] Detected missed Daily Message run. Executing check...");
+      await checkAndSendDailyMessage(client);
+    });
+  }
 }
